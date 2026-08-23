@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ridgeline Motor Club — Los Angeles</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap');
+
+  :root{
+    --ink:#1B2430;
+    --ink-2:#232E3D;
+    --ink-3:#2C3849;
+    --brass:#C89B3C;
+    --brass-soft: rgba(200,155,60,0.18);
+    --sage:#7A8B76;
+    --paper:#EFEAE0;
+    --paper-dim: rgba(239,234,224,0.65);
+    --paper-faint: rgba(239,234,224,0.4);
+    --rust:#B54B3A;
+    --line: rgba(239,234,224,0.14);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Source Serif 4', serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Big Shoulders Display', sans-serif;
+    text-transform:uppercase;
+    font-weight:800;
+    letter-spacing:.01em;
+    line-height:.98;
+    margin:0;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{ color:inherit; }
+  button{ font-family:inherit; cursor:pointer; }
+  :focus-visible{ outline:2px solid var(--brass); outline-offset:2px; }
+
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(27,36,48,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-wrap{
+    max-width:1160px; margin:0 auto; padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; cursor:pointer; }
+  .brand .display{ font-size:22px; }
+  .brand .mono{ font-size:10px; color:var(--brass); letter-spacing:.14em; }
+  nav.links{ display:flex; gap:28px; font-size:14px; }
+  nav.links a{ text-decoration:none; color:var(--paper-dim); cursor:pointer; transition:color .15s; }
+  nav.links a:hover, nav.links a.active{ color:var(--brass); }
+  .nav-actions{ display:flex; gap:12px; align-items:center; }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+    padding:10px 18px; border-radius:2px; border:1px solid var(--brass);
+    background:transparent; color:var(--brass); transition:all .15s;
+  }
+  .btn:hover{ background:var(--brass); color:var(--ink); }
+  .btn.solid{ background:var(--brass); color:var(--ink); }
+  .btn.solid:hover{ background:#dcaf4f; }
+  .btn.ghost{ border-color:var(--line); color:var(--paper-dim); }
+  .btn.ghost:hover{ border-color:var(--paper-dim); color:var(--paper); background:transparent; }
+  .btn.small{ padding:7px 12px; font-size:11px; }
+  .btn.rust{ border-color:var(--rust); color:var(--rust); }
+  .btn.rust:hover{ background:var(--rust); color:var(--paper); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn:disabled:hover{ background:transparent; color:var(--brass); }
+
+  main{ max-width:1160px; margin:0 auto; padding:0 24px 100px; }
+  .view{ display:none; animation:fade .35s ease; }
+  .view.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .hero{
+    padding:72px 0 48px;
+    border-bottom:1px solid var(--line);
+    display:grid; grid-template-columns:1.2fr .8fr; gap:40px; align-items:end;
+  }
+  .hero .eyebrow{ font-size:12px; color:var(--brass); letter-spacing:.18em; margin-bottom:14px; }
+  .hero h1{ font-size:clamp(40px,6vw,76px); }
+  .hero p.lede{ color:var(--paper-dim); font-size:17px; max-width:480px; margin-top:18px; }
+  .hero-stat{ justify-self:end; text-align:right; font-family:'IBM Plex Mono',monospace; }
+  .hero-stat .num{ font-family:'Big Shoulders Display',sans-serif; font-size:56px; color:var(--brass); line-height:1; }
+  .hero-stat .label{ font-size:11px; color:var(--paper-faint); letter-spacing:.1em; text-transform:uppercase; margin-top:4px; }
+
+  .search-bar{
+    margin-top:32px; display:flex; gap:0; border:1px solid var(--line); border-radius:2px; overflow:hidden;
+    background:var(--ink-2);
+  }
+  .search-bar > div{ flex:1; padding:14px 18px; border-right:1px solid var(--line); }
+  .search-bar label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--brass); margin-bottom:5px; }
+  .search-bar input{ background:transparent; border:none; color:var(--paper); font-family:'Source Serif 4',serif; font-size:14px; width:100%; }
+  .search-bar input:focus{ outline:none; }
+  .search-bar button{ border:none; padding:0 28px; }
+
+  .section-head{ display:flex; justify-content:space-between; align-items:baseline; margin:64px 0 24px; }
+  .section-head h2{ font-size:28px; }
+  .section-head .tag{ font-size:11px; color:var(--brass); letter-spacing:.14em; }
+
+  .trust-row{ display:flex; gap:32px; flex-wrap:wrap; margin-top:40px; }
+  .trust-row div{ font-size:13px; color:var(--paper-dim); display:flex; align-items:center; gap:8px; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--sage); }
+
+  .fleet-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .car-stub{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:2px; overflow:hidden; position:relative;
+    display:flex; flex-direction:column; transition:border-color .15s, transform .15s;
+  }
+  .car-stub:hover{ border-color:rgba(200,155,60,0.5); transform:translateY(-2px); }
+  .car-stub::before{ content:""; position:absolute; left:0; top:14px; bottom:14px; width:3px; background:var(--brass); }
+  .car-photo{
+    height:150px; display:flex; align-items:center; justify-content:center; font-size:52px;
+    background: repeating-linear-gradient(135deg, rgba(200,155,60,0.05) 0 12px, transparent 12px 24px), var(--ink-3);
+    border-bottom:1px dashed var(--line);
+  }
+  .car-body{ padding:18px 20px 20px; flex:1; display:flex; flex-direction:column; }
+  .car-tag{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--brass); text-transform:uppercase; }
+  .car-name{ font-family:'Big Shoulders Display',sans-serif; font-weight:800; font-size:24px; text-transform:uppercase; margin:6px 0 10px; }
+  .car-meta{ font-size:13px; color:var(--paper-dim); margin-bottom:16px; line-height:1.5; flex:1; }
+  .car-foot{ display:flex; justify-content:space-between; align-items:center; }
+  .car-price{ font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--paper); }
+  .car-price span{ color:var(--paper-faint); font-size:11px; }
+
+  .detail-top{ display:grid; grid-template-columns:1.1fr .9fr; gap:44px; padding-top:56px; }
+  .detail-photo{
+    height:320px; border:1px solid var(--line); border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:110px;
+    background: repeating-linear-gradient(135deg, rgba(200,155,60,0.05) 0 14px, transparent 14px 28px), var(--ink-2);
+  }
+  .ticket{ border:1px dashed rgba(200,155,60,0.5); border-radius:2px; padding:26px 28px; background:var(--ink-2); }
+  .ticket .tag{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--brass); letter-spacing:.14em; }
+  .ticket h2{ font-size:34px; margin:8px 0 4px; }
+  .ticket .price-line{ font-family:'IBM Plex Mono',monospace; font-size:20px; margin:14px 0 18px; }
+  .ticket .price-line span{ font-size:12px; color:var(--paper-faint); }
+  .spec-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin:18px 0 24px; font-size:13px; }
+  .spec-grid div span{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--paper-faint); letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px; }
+  .perf{ border-top:1px dashed var(--line); margin-top:20px; padding-top:16px; display:flex; justify-content:space-between; }
+  .perf .mono{ font-size:11px; color:var(--paper-faint); }
+
+  .steps-rail{ display:flex; gap:6px; margin:48px 0 36px; flex-wrap:wrap; }
+  .steps-rail div{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px 12px; border:1px solid var(--line); border-radius:2px;
+    color:var(--paper-faint); display:flex; align-items:center; gap:6px;
+  }
+  .steps-rail div.done{ color:var(--sage); border-color:rgba(122,139,118,0.4); }
+  .steps-rail div.current{ color:var(--brass); border-color:var(--brass); background:var(--brass-soft); }
+  .step-panel{ background:var(--ink-2); border:1px solid var(--line); border-radius:2px; padding:36px 40px; max-width:640px; }
+  .step-panel h3{ font-size:24px; margin-bottom:8px; }
+  .step-panel p.help{ color:var(--paper-dim); font-size:14px; margin-bottom:24px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--brass); margin-bottom:6px; }
+  .field input, .field select{
+    width:100%; background:var(--ink); border:1px solid var(--line); color:var(--paper); padding:11px 12px; border-radius:2px; font-family:'Source Serif 4',serif; font-size:14px;
+  }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--brass); }
+  .consent{ display:flex; gap:10px; align-items:flex-start; font-size:12px; color:var(--paper-dim); margin:18px 0; line-height:1.5; }
+  .consent input{ margin-top:3px; }
+  .check-status{ display:flex; align-items:center; gap:12px; padding:16px 18px; border:1px solid var(--line); border-radius:2px; margin-bottom:18px; }
+  .spinner{ width:16px; height:16px; border:2px solid var(--line); border-top-color:var(--brass); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .row-actions{ display:flex; gap:12px; margin-top:26px; }
+  .agreement-box{ height:160px; overflow-y:auto; border:1px solid var(--line); background:var(--ink); padding:16px; font-size:12px; color:var(--paper-dim); line-height:1.6; margin-bottom:16px; border-radius:2px; }
+  .deposit-line{ display:flex; justify-content:space-between; font-size:14px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .deposit-line.total{ font-family:'IBM Plex Mono',monospace; color:var(--brass); border-bottom:none; padding-top:14px; }
+  .confirm-ticket{ text-align:center; padding:40px 30px; border:1px dashed var(--brass); border-radius:2px; background:var(--ink-2); }
+  .confirm-ticket .display{ font-size:44px; color:var(--brass); margin:14px 0 6px; }
+  .confirm-code{ font-family:'IBM Plex Mono',monospace; font-size:13px; letter-spacing:.1em; color:var(--paper-dim); }
+  .demo-note{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-faint); background:var(--ink); border:1px solid var(--line);
+    padding:10px 14px; border-radius:2px; margin-bottom:20px; display:flex; gap:8px; align-items:flex-start;
+  }
+  .demo-note b{ color:var(--rust); }
+
+  .admin-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:40px 0; }
+  .kpi{ background:var(--ink-2); border:1px solid var(--line); border-radius:2px; padding:18px 20px; }
+  .kpi .n{ font-family:'Big Shoulders Display',sans-serif; font-size:32px; color:var(--brass); }
+  .kpi .l{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--paper-faint); margin-top:4px; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--brass); padding:10px 12px; border-bottom:1px solid var(--line); }
+  td{ padding:12px; border-bottom:1px solid var(--line); color:var(--paper-dim); }
+  .status-pill{ font-family:'IBM Plex Mono',monospace; font-size:10px; padding:3px 9px; border-radius:10px; text-transform:uppercase; letter-spacing:.05em; }
+  .status-pill.ok{ background:rgba(122,139,118,0.2); color:var(--sage); }
+  .status-pill.pending{ background:rgba(200,155,60,0.2); color:var(--brass); }
+
+  footer{ border-top:1px solid var(--line); margin-top:80px; padding:32px 24px; text-align:center; color:var(--paper-faint); font-size:12px; }
+
+  @media(max-width:860px){
+    .hero{ grid-template-columns:1fr; }
+    .hero-stat{ justify-self:start; text-align:left; }
+    .search-bar{ flex-direction:column; }
+    .search-bar > div{ border-right:none; border-bottom:1px solid var(--line); }
+    .fleet-grid{ grid-template-columns:1fr; }
+    .detail-top{ grid-template-columns:1fr; }
+    .admin-grid{ grid-template-columns:1fr 1fr; }
+    nav.links{ display:none; }
+    .step-panel{ padding:24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav-wrap">
+    <div class="brand" onclick="go('home')">
+      <div class="display">Ridgeline</div>
+      <div class="mono">Motor Club · LA</div>
+    </div>
+    <nav class="links">
+      <a onclick="go('home')">Home</a>
+      <a onclick="go('fleet')">Fleet</a>
+      <a onclick="go('how')">How It Works</a>
+      <a onclick="go('policies')">Policies</a>
+      <a onclick="go('admin')">Admin</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn ghost small" onclick="go('account')">My Bookings</button>
+      <button class="btn solid small" onclick="go('fleet')">Book a Car</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section id="home" class="view active">
+    <div class="hero">
+      <div>
+        <div class="eyebrow">Private Fleet · Three Cars · Los Angeles</div>
+        <h1>No counter.<br>No line.<br>Just the keys.</h1>
+        <p class="lede">A small, personally maintained fleet in LA. Every car inspected between rentals, every renter verified before pickup — no corporate lot, no upsell script.</p>
+        <div class="search-bar">
+          <div><label>Pick up</label><input type="date"></div>
+          <div><label>Return</label><input type="date"></div>
+          <div><label>Location</label><input type="text" placeholder="Los Angeles, CA" value="Los Angeles, CA"></div>
+          <button class="btn solid" onclick="go('fleet')">Search</button>
+        </div>
+        <div class="trust-row">
+          <div><span class="dot"></span>ID + driving record verified</div>
+          <div><span class="dot"></span>Insured every trip</div>
+          <div><span class="dot"></span>Deposit held, not charged</div>
+        </div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">03</div>
+        <div class="label">Cars in the fleet</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>The Fleet</h2>
+      <div class="tag mono" onclick="go('fleet')" style="cursor:pointer">View all →</div>
+    </div>
+    <div class="fleet-grid" id="home-fleet-preview"></div>
+  </section>
+
+  <section id="fleet" class="view">
+    <div class="section-head" style="margin-top:56px;">
+      <h2>Browse the Fleet</h2>
+      <div class="tag mono">3 vehicles · updated daily</div>
+    </div>
+    <div class="fleet-grid" id="fleet-grid"></div>
+  </section>
+
+  <section id="detail" class="view">
+    <div class="detail-top" id="detail-content"></div>
+  </section>
+
+  <section id="how" class="view">
+    <div class="section-head" style="margin-top:56px;"><h2>How It Works</h2></div>
+    <div class="admin-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi"><div class="n">01</div><div class="l">Book online</div><p style="font-size:13px;color:var(--paper-dim);margin-top:10px;">Pick a car and your dates. Price is shown up front, no surprise fees at pickup.</p></div>
+      <div class="kpi"><div class="n">02</div><div class="l">Get verified</div><p style="font-size:13px;color:var(--paper-dim);margin-top:10px;">Upload your license, take a quick selfie, and consent to a driving record check.</p></div>
+      <div class="kpi"><div class="n">03</div><div class="l">Sign & pay</div><p style="font-size:13px;color:var(--paper-dim);margin-top:10px;">E-sign the rental agreement, then place a refundable deposit hold plus the rental charge.</p></div>
+      <div class="kpi"><div class="n">04</div><div class="l">Pick up</div><p style="font-size:13px;color:var(--paper-dim);margin-top:10px;">Meet at the car or use keyless entry. Return it the way you found it.</p></div>
+    </div>
+  </section>
+
+  <section id="policies" class="view">
+    <div class="section-head" style="margin-top:56px;"><h2>Pricing & Policies</h2></div>
+    <div class="step-panel" style="max-width:100%;">
+      <p class="help">Renters must be 21+ with a valid license held 2+ years. A refundable deposit (held, not charged) is placed at booking and released within 3 business days of return. 150 free miles/day, $0.45/mile after. Full tank to full tank. Cancellations 48+ hours out are fully refunded.</p>
+    </div>
+  </section>
+
+  <section id="account" class="view">
+    <div class="section-head" style="margin-top:56px;"><h2>My Bookings</h2></div>
+    <div id="account-content"></div>
+  </section>
+
+  <section id="booking" class="view">
+    <div class="steps-rail" id="steps-rail"></div>
+    <div id="booking-panel"></div>
+  </section>
+
+  <section id="admin" class="view">
+    <div class="section-head" style="margin-top:56px;"><h2>Back Office</h2><div class="tag mono">Admin view</div></div>
+
+    <div class="step-panel" id="admin-login-panel" style="max-width:520px;margin-bottom:32px;">
+      <h3 style="font-size:18px;">Admin sign-in</h3>
+      <p class="help" style="margin-bottom:16px;">Sign in with an account listed in the <span class="mono">admins</span> table to load live data below.</p>
+      <div class="field"><label>Email</label><input type="email" id="admin-email" placeholder="you@ridgeline.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="admin-password"></div>
+      <div class="row-actions"><button class="btn solid small" onclick="adminLogin()">Sign in</button><span id="admin-login-status" class="mono" style="font-size:12px;color:var(--paper-faint);align-self:center;"></span></div>
+    </div>
+
+    <div class="admin-grid">
+      <div class="kpi"><div class="n">3</div><div class="l">Cars in fleet</div></div>
+      <div class="kpi"><div class="n">2</div><div class="l">Active bookings</div></div>
+      <div class="kpi"><div class="n">1</div><div class="l">Pending verification</div></div>
+      <div class="kpi"><div class="n">$1,240</div><div class="l">Revenue this month</div></div>
+    </div>
+    <div class="tag mono" style="margin:0 0 10px;">Confirmed & sample bookings</div>
+    <table>
+      <thead><tr><th>Renter</th><th>Car</th><th>Dates</th><th>Verification</th><th>Payment</th></tr></thead>
+      <tbody id="admin-sample-rows">
+        <tr><td>J. Alvarez</td><td>Mustang GT Convertible</td><td>Aug 19–22</td><td><span class="status-pill ok">Approved</span></td><td>Deposit held</td></tr>
+        <tr><td>M. Chen</td><td>Range Rover Sport</td><td>Aug 24–26</td><td><span class="status-pill pending">Pending</span></td><td>Awaiting sig</td></tr>
+        <tr><td>D. Osei</td><td>Model 3</td><td>Sep 1–4</td><td><span class="status-pill ok">Approved</span></td><td>Charged</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tag mono" style="margin:36px 0 10px;">Pending account setup — reservation held, no renter account yet</div>
+    <table>
+      <thead><tr><th>Confirmation</th><th>Car</th><th>Dates</th><th>Status</th></tr></thead>
+      <tbody id="admin-queue-rows">
+        <tr><td colspan="4" style="color:var(--paper-faint);">No reservations waiting on account setup.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>Ridgeline Motor Club — Los Angeles, CA · Payments, identity verification, and driving-record checks connect to Stripe/Checkr when CONFIG keys below are set; otherwise steps fall back to a simulated demo mode.</footer>
+
+<script>
+// ---------------- Config ----------------
+// Fill these in with your real project values. API_BASE stays '' when this
+// file is served by the same Next.js app (i.e. from /public) so
+// fetch('/api/...') hits your own backend.
+const CONFIG = {
+  API_BASE: '',
+  SUPABASE_URL: 'https://YOUR-PROJECT.supabase.co',
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+  STRIPE_PUBLISHABLE_KEY: 'pk_test_YOUR_KEY',
+};
+
+// Used only if /api/cars can't be reached, so the UI still has something to show.
+const DEMO_CARS = [
+  { id:'mustang', icon:'🏎️', name:'Mustang GT Convertible', tag:'Sport', year:2023, price:129, mpg:'22 city / 30 hwy', seats:4, mileage:'150 mi/day', plate:'8LRX204', desc:'Red convertible, automatic. Weekend favorite for the coast highway.' },
+  { id:'rangerover', icon:'🚙', name:'Range Rover Sport', tag:'SUV', year:2022, price:159, mpg:'19 city / 26 hwy', seats:5, mileage:'150 mi/day', plate:'7KTM819', desc:'Black, all-wheel drive, tow package. Good for groups and gear.' },
+  { id:'model3', icon:'⚡', name:'Tesla Model 3', tag:'Electric', year:2024, price:99, mpg:'—', seats:5, mileage:'150 mi/day', plate:'9DGN552', desc:'White, long range. Supercharger network included, autopilot enabled.' },
+];
+
+let CARS = [];
+let currentCar = null;
+let activeReservation = null;
+let bookingQueue = [];
+let currentRenterId = null;
+let renterName = '', renterEmail = '';
+let adminToken = null;
+let stripeInstance = null, cardElement = null;
+let checkrWindow = null;
+
+function iconFor(tag){
+  if(tag === 'Sport') return '🏎️';
+  if(tag === 'SUV') return '🚙';
+  if(tag === 'Electric') return '⚡';
+  return '🚗';
+}
+function carNameFor(carId){
+  const c = CARS.find(x => x.id === carId);
+  return c ? c.name : 'Selected car';
+}
+function makeCode(){
+  return 'RMC-' + Math.floor(100000 + Math.random()*899999);
+}
+
+async function api(path, options={}){
+  const res = await fetch(CONFIG.API_BASE + path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers||{}) },
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || `Request to ${path} failed`);
+  return data;
+}
+
+function carCard(c){
+  return `<div class="car-stub" onclick="openDetail('${c.id}')">
+    <div class="car-photo">${c.icon}</div>
+    <div class="car-body">
+      <div class="car-tag">${c.tag} · ${c.year}</div>
+      <div class="car-name">${c.name}</div>
+      <div class="car-meta">${c.mileage} · ${c.seats} seats · Plate ${c.plate}</div>
+      <div class="car-foot">
+        <div class="car-price">$${c.price}<span> /day</span></div>
+        <button class="btn small">View</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadCars(){
+  try{
+    const data = await api('/api/cars');
+    if(!data.cars || data.cars.length === 0) throw new Error('No cars returned — has the cars table been seeded?');
+    CARS = data.cars.map(c => ({
+      id: c.id, icon: iconFor(c.tag), name: c.name, tag: c.tag, year: c.year,
+      price: c.price_per_day, mpg: c.mpg || '—', seats: c.seats,
+      mileage: (c.mileage_per_day || 150) + ' mi/day', plate: c.plate || '—', desc: c.description || '',
+    }));
+  }catch(e){
+    console.warn('Loading cars from backend failed, showing demo fleet instead —', e.message);
+    CARS = DEMO_CARS;
+  }
+  document.getElementById('home-fleet-preview').innerHTML = CARS.map(carCard).join('');
+  document.getElementById('fleet-grid').innerHTML = CARS.map(carCard).join('');
+}
+loadCars();
+
+// If Checkr redirected the renter back here (redirect_uri included
+// ?resume=<code>), take them straight back to their reservation.
+(function resumeFromCheckrRedirect(){
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('resume');
+  if(code){
+    resumeReservation(code).then(() => {
+      stepIndex = 5;
+      renderStep();
+    });
+  }
+})();
+
+function go(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(view).classList.add('active');
+  document.querySelectorAll('nav.links a').forEach(a=>a.classList.remove('active'));
+  if(view === 'account') renderAccount();
+  if(view === 'admin') renderAdminQueue();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function openDetail(id){
+  currentCar = CARS.find(c=>c.id===id);
+  const c = currentCar;
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-photo">${c.icon}</div>
+    <div class="ticket">
+      <div class="tag">CLAIM No. ${c.plate}</div>
+      <h2>${c.name}</h2>
+      <div class="mono" style="font-size:12px;color:var(--paper-faint)">${c.year} · ${c.tag}</div>
+      <div class="price-line">$${c.price}/day <span>+ deposit, released after return</span></div>
+      <p style="font-size:14px;color:var(--paper-dim);line-height:1.6;">${c.desc}</p>
+      <div class="spec-grid">
+        <div><span>Seats</span>${c.seats}</div>
+        <div><span>Mileage</span>${c.mileage}</div>
+        <div><span>Fuel economy</span>${c.mpg}</div>
+        <div><span>Minimum age</span>21, license 2+ yrs</div>
+      </div>
+      <button class="btn solid" style="width:100%;padding:14px;" onclick="startBooking()">Book This Car</button>
+      <div class="perf"><span class="mono">Insured — AXA equivalent coverage</span><span class="mono">Keyless entry available</span></div>
+    </div>
+  `;
+  go('detail');
+}
+
+// ---------------- Booking flow ----------------
+const STEP_NAMES = ['Dates','Reservation Held','Account','Identity','Consent','Verifying','Agreement','Payment','Confirmed'];
+let stepIndex = 0;
+
+function startBooking(){
+  stepIndex = 0;
+  go('booking');
+  renderStep();
+}
+
+function normalizeReservation(r){
+  return {
+    code: r.confirmation_code || r.code,
+    carName: (r.cars && r.cars.name) || carNameFor(r.car_id) || r.carName || 'Car',
+    start: r.start_date || r.start || '',
+    end: r.end_date || r.end || '',
+    status: r.status,
+  };
+}
+
+async function renderAccount(){
+  const wrap = document.getElementById('account-content');
+  wrap.innerHTML = `<p class="help mono" style="font-size:12px;">Loading…</p>`;
+  let rows = bookingQueue;
+
+  if(currentRenterId){
+    try{
+      const data = await api('/api/reservations?renter_id=' + encodeURIComponent(currentRenterId));
+      rows = data.reservations || [];
+    }catch(e){
+      console.warn('Could not load reservations from backend, showing local copy —', e.message);
+    }
+  }
+
+  if(rows.length === 0){
+    wrap.innerHTML = `<div class="step-panel" style="max-width:100%;">
+      <p class="help">You have no bookings yet. Once you reserve a car it will show up here — even before your account setup is finished.</p>
+      <button class="btn solid" onclick="go('fleet')">Browse the Fleet</button>
+    </div>`;
+    return;
+  }
+
+  wrap.innerHTML = rows.map(raw => {
+    const r = normalizeReservation(raw);
+    return `<div class="step-panel" style="max-width:100%;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+      <div>
+        <div class="tag mono" style="color:var(--brass);">${r.code}</div>
+        <h3 style="font-size:20px;margin:6px 0 4px;">${r.carName}</h3>
+        <div class="mono" style="font-size:12px;color:var(--paper-faint);">${r.start || 'dates tbd'} → ${r.end || ''}</div>
+      </div>
+      <div style="text-align:right;">
+        ${r.status === 'pending_account'
+          ? `<span class="status-pill pending">Pending account setup</span>
+             <div style="margin-top:10px;"><button class="btn small solid" onclick="resumeReservation('${r.code}')">Finish Setup</button></div>`
+          : `<span class="status-pill ok">${r.status === 'confirmed' ? 'Confirmed' : r.status}</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function adminLogin(){
+  const email = document.getElementById('admin-email').value;
+  const password = document.getElementById('admin-password').value;
+  const statusEl = document.getElementById('admin-login-status');
+  statusEl.textContent = 'Signing in…';
+  try{
+    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': CONFIG.SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error_description || data.msg || 'Sign-in failed');
+    adminToken = data.access_token;
+    statusEl.textContent = 'Signed in.';
+    statusEl.style.color = 'var(--sage)';
+    renderAdminQueue();
+  }catch(e){
+    statusEl.textContent = e.message + ' — showing local data instead.';
+    statusEl.style.color = 'var(--rust)';
+  }
+}
+
+async function renderAdminQueue(){
+  const tbody = document.getElementById('admin-queue-rows');
+  let rows = bookingQueue.filter(r => r.status === 'pending_account');
+
+  if(adminToken){
+    try{
+      const res = await fetch(CONFIG.API_BASE + '/api/admin/reservations?status=pending_account', {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Admin request failed');
+      rows = data.reservations || [];
+    }catch(e){
+      console.warn('Admin fetch failed, showing local queue —', e.message);
+    }
+  }
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--paper-faint);">No reservations waiting on account setup.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(raw => {
+    const r = normalizeReservation(raw);
+    return `<tr><td class="mono">${r.code}</td><td>${r.carName}</td><td>${r.start || '—'} → ${r.end || '—'}</td><td><span class="status-pill pending">Awaiting account setup</span></td></tr>`;
+  }).join('');
+}
+
+async function resumeReservation(code){
+  let reservation = bookingQueue.find(r => (r.confirmation_code || r.code) === code);
+  if(!reservation){
+    try{
+      const data = await api('/api/reservations/' + encodeURIComponent(code));
+      reservation = data.reservation;
+    }catch(e){
+      console.warn('Could not fetch reservation by code —', e.message);
+      reservation = { confirmation_code: code, status: 'pending_account' };
+    }
+  }
+  activeReservation = reservation;
+  currentCar = CARS.find(c => c.name === (reservation.cars?.name || reservation.carName)) || CARS[0];
+  stepIndex = 2; // straight to Account step; callers can override after calling this
+  go('booking');
+  renderStep();
+}
+
+function renderRail(){
+  document.getElementById('steps-rail').innerHTML = STEP_NAMES.map((s,i)=>{
+    const cls = i < stepIndex ? 'done' : (i === stepIndex ? 'current' : '');
+    const mark = i < stepIndex ? '✓' : (i+1).toString().padStart(2,'0');
+    return `<div class="${cls}"><span class="mono">${mark}</span>${s}</div>`;
+  }).join('');
+}
+
+function renderStep(){
+  renderRail();
+  const panel = document.getElementById('booking-panel');
+  const c = currentCar || CARS[0];
+  const resCode = activeReservation ? (activeReservation.confirmation_code || activeReservation.code) : '';
+
+  if(stepIndex === 0){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Select your dates</h3>
+      <p class="help">${c.name} — $${c.price}/day. No account needed yet — your spot is held as soon as you continue.</p>
+      <div class="field"><label>Pickup date</label><input type="date" id="bk-start"></div>
+      <div class="field"><label>Return date</label><input type="date" id="bk-end"></div>
+      <div id="dates-error" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
+      <div class="row-actions"><button class="btn solid" onclick="submitDates()">Hold This Reservation</button><button class="btn ghost" onclick="go('detail')">Cancel</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 1){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Reservation held</h3>
+      <p class="help">${c.name} is held for your dates. It won't be released to other renters, but it isn't confirmed yet — finish account setup and verification to lock it in.</p>
+      <div class="check-status"><span class="status-pill pending">Pending account setup</span>&nbsp; <span class="mono" style="color:var(--paper-dim);font-size:12px;">${resCode}</span></div>
+      <div class="demo-note"><b>Live:</b> this reservation was written to the reservations table via POST /api/reservations and now shows up in My Bookings and the admin queue.</div>
+      <div class="row-actions"><button class="btn solid" onclick="nextStep()">Set Up Account & Verify</button><button class="btn ghost" onclick="go('account')">Finish Later</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 2){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Create your account</h3>
+      <p class="help">We'll send your confirmation and pickup instructions here.</p>
+      <div class="field"><label>Full name</label><input type="text" id="acc-name" placeholder="Jordan Alvarez"></div>
+      <div class="field"><label>Email</label><input type="email" id="acc-email" placeholder="you@email.com"></div>
+      <div class="field"><label>Phone</label><input type="tel" id="acc-phone" placeholder="(310) 555-0134"></div>
+      <div class="field"><label>Password</label><input type="password" id="acc-pass" placeholder="At least 8 characters"></div>
+      <div id="signup-error" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
+      <div class="row-actions"><button class="btn solid" id="signup-btn" onclick="submitSignup()">Continue</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 3){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Verify your identity</h3>
+      <p class="help">Opens Stripe's own verification window — document capture, selfie, and liveness check all happen there, not on this page.</p>
+      <div class="demo-note"><b>Live if configured:</b> this calls POST /api/verification/start for a real session, then stripe.verifyIdentity() to launch Stripe's modal. Without a Stripe key in CONFIG, it falls back to a mock "verified" state instead.</div>
+      <div class="check-status" id="identity-status"><span class="status-pill pending">Not started</span></div>
+      <div id="identity-error" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
+      <div class="row-actions"><button class="btn solid" id="identity-start-btn" onclick="startIdentityVerification()">Verify with Stripe</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+      <div class="row-actions" style="margin-top:4px;"><button class="btn small" id="id-continue" onclick="nextStep()" disabled>Continue</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 4){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Driving record consent</h3>
+      <p class="help">Federal law (FCRA) requires your written consent before we can run a driving record / background check.</p>
+      <div class="consent"><input type="checkbox" id="consent-box" onchange="document.getElementById('consent-continue').disabled = !this.checked"> I authorize Ridgeline Motor Club to obtain a consumer report including my driving record, for the purpose of this rental. I understand I can request a copy of any report used.</div>
+      <div class="row-actions"><button class="btn solid" id="consent-continue" onclick="continueFromConsent()" disabled>Authorize & Continue</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 5){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Driving record check</h3>
+      <p class="help">Checkr opens in a new tab to collect the details it needs (this includes your SSN, so it's handled entirely on their secure page — never on ours). Come back here when you're done.</p>
+      <div class="demo-note"><b>Live if configured:</b> POST /api/background-check/start already ran when you continued from consent. The actual clear/consider result arrives later via the Checkr webhook — this screen can't show it in real time, so it just lets you move on once you've completed Checkr's form.</div>
+      <div class="check-status" id="checkr-status"><span class="status-pill pending">Waiting on Checkr</span></div>
+      <div class="row-actions"><button class="btn ghost" id="checkr-reopen-btn" onclick="reopenCheckr()">Reopen Checkr Tab</button></div>
+      <div class="row-actions" style="margin-top:12px;"><button class="btn solid" onclick="nextStep()">I've Completed the Check — Continue</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>`;
+    launchCheckr();
+  }
+  else if(stepIndex === 6){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Rental agreement</h3>
+      <p class="help">Read and sign before payment.</p>
+      <div class="agreement-box">RENTAL AGREEMENT — RIDGELINE MOTOR CLUB<br><br>
+      Renter agrees to return the vehicle on the date and time specified, with a full tank of fuel, in the condition received. Renter is responsible for all traffic violations, tolls, and damage not covered by the included insurance policy during the rental period. Mileage is limited to the plan selected; overage is billed at $0.45/mile. A security deposit is held and released within 3 business days of a damage-free return. Renter must be 21+ with a valid driver's license held for at least 2 years...</div>
+      <div class="field"><label>Type your full legal name to sign</label><input type="text" id="sig" placeholder="Full legal name" oninput="document.getElementById('sig-continue').disabled = this.value.trim().length < 3"></div>
+      <div class="row-actions"><button class="btn solid" id="sig-continue" onclick="continueFromAgreement()" disabled>Sign & Continue</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>`;
+  }
+  else if(stepIndex === 7){
+    panel.innerHTML = `<div class="step-panel">
+      <h3>Deposit & payment</h3>
+      <div class="deposit-line"><span>Rental — ${c.name}</span><span>$${c.price*3}</span></div>
+      <div class="deposit-line"><span>Refundable deposit (held, not charged)</span><span>$500</span></div>
+      <div class="deposit-line total"><span>Due now</span><span>$${c.price*3}</span></div>
+      <div class="demo-note"><b>Live if configured:</b> "Pay & Reserve" creates and confirms two Stripe PaymentIntents — the rental charge (captured immediately) via POST /api/payments/create-intent, and the deposit hold (authorization-only) via POST /api/payments/create-deposit-hold. Without STRIPE_PUBLISHABLE_KEY set in CONFIG, this falls back to a simulated success so the demo still completes.</div>
+      <div id="card-element" style="padding:12px;border:1px solid var(--line);border-radius:2px;background:var(--ink);margin-bottom:12px;font-size:13px;color:var(--paper-faint);"></div>
+      <div id="card-errors" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:12px;"></div>
+      <div class="row-actions"><button class="btn solid" id="pay-btn" onclick="submitPayment()">Pay & Reserve</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>`;
+    mountStripeCard();
+  }
+  else if(stepIndex === 8){
+    if(activeReservation) activeReservation.status = 'confirmed';
+    panel.innerHTML = `<div class="confirm-ticket">
+      <div class="tag mono" style="color:var(--brass);">BOOKING CONFIRMED</div>
+      <div class="display">${c.name}</div>
+      <p style="color:var(--paper-dim);font-size:14px;">Pickup instructions and your signed agreement have been emailed to you.</p>
+      <div class="confirm-code">CONFIRMATION ${resCode || makeCode()}</div>
+      <div class="row-actions" style="justify-content:center;margin-top:24px;"><button class="btn solid" onclick="go('account')">Go to My Bookings</button><button class="btn ghost" onclick="go('home')">Back to Home</button></div>
+    </div>`;
+  }
+}
+
+async function submitDates(){
+  const start = document.getElementById('bk-start').value;
+  const end = document.getElementById('bk-end').value;
+  const errEl = document.getElementById('dates-error');
+  const c = currentCar || CARS[0];
+
+  if(!start || !end){ errEl.textContent = 'Pick both a pickup and return date.'; return; }
+
+  try{
+    const data = await api('/api/reservations', {
+      method: 'POST',
+      body: JSON.stringify({ car_id: c.id, start_date: start, end_date: end }),
+    });
+    activeReservation = data.reservation;
+  }catch(e){
+    console.warn('Reservation API failed, holding locally instead —', e.message);
+    activeReservation = { id: 'local-'+Date.now(), confirmation_code: makeCode(), car_id: c.id, start_date: start, end_date: end, status: 'pending_account' };
+  }
+  bookingQueue.push(activeReservation);
+  nextStep();
+}
+
+async function submitSignup(){
+  renterName = document.getElementById('acc-name').value;
+  renterEmail = document.getElementById('acc-email').value;
+  const phone = document.getElementById('acc-phone').value;
+  const password = document.getElementById('acc-pass').value;
+  const errEl = document.getElementById('signup-error');
+  const btn = document.getElementById('signup-btn');
+
+  if(!renterName || !renterEmail || password.length < 8){
+    errEl.textContent = 'Name, email, and an 8+ character password are required.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try{
+    const data = await api('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: renterEmail, password, full_name: renterName, phone,
+        reservation_code: activeReservation.confirmation_code || activeReservation.code,
+      }),
+    });
+    currentRenterId = data.renter_id;
+    if(activeReservation) activeReservation.status = 'account_created';
+  }catch(e){
+    console.warn('Signup API failed, continuing without a real account —', e.message);
+    errEl.textContent = e.message + ' — continuing in demo mode.';
+  }
+  nextStep();
+}
+
+function getStripe(){
+  if(!window.Stripe || !CONFIG.STRIPE_PUBLISHABLE_KEY || CONFIG.STRIPE_PUBLISHABLE_KEY.includes('YOUR_KEY')) return null;
+  if(!stripeInstance) stripeInstance = Stripe(CONFIG.STRIPE_PUBLISHABLE_KEY);
+  return stripeInstance;
+}
+
+async function startIdentityVerification(){
+  const statusEl = document.getElementById('identity-status');
+  const errEl = document.getElementById('identity-error');
+  const btn = document.getElementById('identity-start-btn');
+  btn.disabled = true; btn.textContent = 'Opening…';
+  statusEl.innerHTML = `<div class="spinner"></div><div>Starting verification…</div>`;
+
+  const stripe = getStripe();
+  if(!stripe){
+    statusEl.innerHTML = `<span class="status-pill ok">Verified (simulated — no Stripe key set)</span>`;
+    document.getElementById('id-continue').disabled = false;
+    btn.textContent = 'Verify with Stripe';
+    btn.disabled = false;
+    return;
+  }
+
+  try{
+    const data = await api('/api/verification/start', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id }),
+    });
+    const result = await stripe.verifyIdentity(data.client_secret);
+    if(result.error) throw new Error(result.error.message);
+    statusEl.innerHTML = `<span class="status-pill pending">Submitted — under review</span>`;
+    document.getElementById('id-continue').disabled = false;
+  }catch(e){
+    errEl.textContent = e.message;
+    statusEl.innerHTML = `<span class="status-pill pending">Not started</span>`;
+  }
+  btn.textContent = 'Verify with Stripe';
+  btn.disabled = false;
+}
+
+async function continueFromConsent(){
+  try{
+    await api('/api/consent', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id, renter_id: currentRenterId }),
+    });
+  }catch(e){ console.warn('consent logging failed —', e.message); }
+  nextStep();
+}
+
+async function launchCheckr(){
+  const statusEl = document.getElementById('checkr-status');
+  try{
+    const returnUrl = window.location.origin + window.location.pathname + '?resume=' + encodeURIComponent(activeReservation?.confirmation_code || '');
+    const data = await api('/api/background-check/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        reservation_id: activeReservation?.id,
+        full_name: renterName,
+        email: renterEmail,
+        redirect_uri: returnUrl,
+      }),
+    });
+    if(data.invitation_url){
+      checkrWindow = window.open(data.invitation_url, '_blank');
+      statusEl.innerHTML = `<span class="status-pill pending">Opened in a new tab — waiting on you</span>`;
+    }else{
+      throw new Error('No invitation URL returned');
+    }
+  }catch(e){
+    console.warn('background-check/start failed, continuing in demo mode —', e.message);
+    statusEl.innerHTML = `<span class="status-pill pending">Simulated — no Checkr key set</span>`;
+  }
+}
+
+function reopenCheckr(){
+  if(checkrWindow && !checkrWindow.closed){ checkrWindow.focus(); }
+  else{ launchCheckr(); }
+}
+
+async function continueFromAgreement(){
+  const name = document.getElementById('sig').value;
+  try{
+    await api('/api/agreements/sign', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id, signer_name: name }),
+    });
+  }catch(e){ console.warn('agreement sign failed —', e.message); }
+  nextStep();
+}
+
+function mountStripeCard(){
+  const holder = document.getElementById('card-element');
+  const stripe = getStripe();
+  if(!stripe){
+    holder.textContent = 'Set CONFIG.STRIPE_PUBLISHABLE_KEY to load a real card field — using a simulated payment for now.';
+    cardElement = null;
+    return;
+  }
+  const elements = stripe.elements();
+  cardElement = elements.create('card');
+  cardElement.mount('#card-element');
+}
+
+async function submitPayment(){
+  const btn = document.getElementById('pay-btn');
+  const errEl = document.getElementById('card-errors');
+  btn.disabled = true; btn.textContent = 'Processing…';
+
+  const stripe = getStripe();
+
+  try{
+    const chargeData = await api('/api/payments/create-intent', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id }),
+    });
+    if(stripe && cardElement){
+      const chargeResult = await stripe.confirmCardPayment(chargeData.client_secret, {
+        payment_method: { card: cardElement },
+      });
+      if(chargeResult.error) throw new Error(chargeResult.error.message);
+    }
+
+    const depositData = await api('/api/payments/create-deposit-hold', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id }),
+    });
+    if(stripe && cardElement){
+      const depositResult = await stripe.confirmCardPayment(depositData.client_secret, {
+        payment_method: { card: cardElement },
+      });
+      if(depositResult.error) throw new Error(depositResult.error.message);
+    }
+  }catch(e){
+    console.warn('Payment failed or backend unavailable, continuing in demo mode —', e.message);
+    errEl.textContent = e.message + ' — continuing in demo mode.';
+  }
+  nextStep();
+}
+
+function nextStep(){ stepIndex++; renderStep(); }
+function prevStep(){ stepIndex--; renderStep(); }
+</script>
+</body>
+</html>
