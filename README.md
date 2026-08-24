@@ -1,7 +1,7 @@
 # Ridgeline Motor Club — backend + frontend
 
 Next.js (App Router) API routes + Supabase (Postgres/Auth) + Stripe
-(payments + Identity) + Checkr (driving record checks).
+(payments + Ide ntity) + Checkr (driving record checks).
 
 **→ For getting this live with a working booking + payment + verification
 flow, see [DEPLOYMENT.md](./DEPLOYMENT.md).** The steps below are for
