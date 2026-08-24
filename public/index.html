@@ -223,6 +223,7 @@
       <a onclick="go('admin')">Admin</a>
     </nav>
     <div class="nav-actions">
+      <button class="btn ghost small" onclick="startAccountOnly()">Create Account</button>
       <button class="btn ghost small" onclick="go('account')">My Bookings</button>
       <button class="btn solid small" onclick="go('fleet')">Book a Car</button>
     </div>
@@ -335,6 +336,14 @@
         <tr><td colspan="4" style="color:var(--paper-faint);">No reservations waiting on account setup.</td></tr>
       </tbody>
     </table>
+
+    <div class="tag mono" style="margin:36px 0 10px;">Cash payment requests — needs your approval or denial</div>
+    <table>
+      <thead><tr><th>Confirmation</th><th>Renter</th><th>Car</th><th>Amount</th><th>Action</th></tr></thead>
+      <tbody id="admin-cash-rows">
+        <tr><td colspan="5" style="color:var(--paper-faint);">Sign in above to load cash payment requests.</td></tr>
+      </tbody>
+    </table>
   </section>
 
 </main>
@@ -348,9 +357,9 @@
 // fetch('/api/...') hits your own backend.
 const CONFIG = {
   API_BASE: '',
-  SUPABASE_URL: 'https://ridgeline-app-xi.vercel.app/',
-  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1Ym5weGN2a2RrZWtrdGN4aGprIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzUxNTk4MiwiZXhwIjoyMTAzMDkxOTgyfQ.nD3gZkGe3hbrmcQYizGygAPvz465IvztUwp3HKyzC6I',
-  STRIPE_PUBLISHABLE_KEY: 'pk_live_51U7mgIDTGCMKTFNa7YmogaeKvX4f71mYQ8EadmlLHkNfRLLYMBRG2IV6thavf9tOIIKqbGsyDllb7qiKLotoH63X00JL2sC85v',
+  SUPABASE_URL: 'https://YOUR-PROJECT.supabase.co',
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+  STRIPE_PUBLISHABLE_KEY: 'pk_test_YOUR_KEY',
 };
 
 // Used only if /api/cars can't be reached, so the UI still has something to show.
@@ -477,8 +486,22 @@ function openDetail(id){
 const STEP_NAMES = ['Dates','Reservation Held','Account','Identity','Consent','Verifying','Agreement','Payment','Confirmed'];
 let stepIndex = 0;
 
+let standaloneMode = false;
+
 function startBooking(){
+  standaloneMode = false;
   stepIndex = 0;
+  go('booking');
+  renderStep();
+}
+
+// Lets someone create an account before ever picking a car — useful if
+// they want to get verification/paperwork out of the way early.
+function startAccountOnly(){
+  standaloneMode = true;
+  currentCar = null;
+  activeReservation = null;
+  stepIndex = 2; // straight to account creation, skipping dates/hold
   go('booking');
   renderStep();
 }
@@ -581,6 +604,61 @@ async function renderAdminQueue(){
     const r = normalizeReservation(raw);
     return `<tr><td class="mono">${r.code}</td><td>${r.carName}</td><td>${r.start || '—'} → ${r.end || '—'}</td><td><span class="status-pill pending">Awaiting account setup</span></td></tr>`;
   }).join('');
+
+  renderAdminCashQueue();
+}
+
+async function renderAdminCashQueue(){
+  const tbody = document.getElementById('admin-cash-rows');
+  if(!adminToken){
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--paper-faint);">Sign in above to load cash payment requests.</td></tr>`;
+    return;
+  }
+
+  try{
+    const res = await fetch(CONFIG.API_BASE + '/api/admin/payments?status=pending_approval', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Admin request failed');
+    const payments = data.payments || [];
+
+    if(payments.length === 0){
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--paper-faint);">No cash payment requests waiting on approval.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = payments.map(p => `
+      <tr>
+        <td class="mono">${p.reservations?.confirmation_code || '—'}</td>
+        <td>${p.reservations?.renters?.full_name || '—'}</td>
+        <td>${p.reservations?.cars?.name || '—'}</td>
+        <td class="mono">$${p.amount}</td>
+        <td>
+          <button class="btn small solid" onclick="reviewCashPayment('${p.id}','approve')">Approve</button>
+          <button class="btn small rust" onclick="reviewCashPayment('${p.id}','deny')">Deny</button>
+        </td>
+      </tr>`).join('');
+  }catch(e){
+    console.warn('Cash payment queue fetch failed —', e.message);
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--rust);">${e.message}</td></tr>`;
+  }
+}
+
+async function reviewCashPayment(paymentId, action){
+  try{
+    const res = await fetch(CONFIG.API_BASE + `/api/admin/payments/${paymentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Request failed');
+  }catch(e){
+    console.warn('Cash payment review failed —', e.message);
+    alert(e.message);
+  }
+  renderAdminCashQueue();
 }
 
 async function resumeReservation(code){
@@ -637,13 +715,13 @@ function renderStep(){
   else if(stepIndex === 2){
     panel.innerHTML = `<div class="step-panel">
       <h3>Create your account</h3>
-      <p class="help">We'll send your confirmation and pickup instructions here.</p>
+      <p class="help">${standaloneMode ? "Set up your account now — you can browse and book a car any time afterward, and this step (plus verification) will already be done." : "We'll send your confirmation and pickup instructions here."}</p>
       <div class="field"><label>Full name</label><input type="text" id="acc-name" placeholder="Jordan Alvarez"></div>
       <div class="field"><label>Email</label><input type="email" id="acc-email" placeholder="you@email.com"></div>
       <div class="field"><label>Phone</label><input type="tel" id="acc-phone" placeholder="(310) 555-0134"></div>
       <div class="field"><label>Password</label><input type="password" id="acc-pass" placeholder="At least 8 characters"></div>
       <div id="signup-error" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
-      <div class="row-actions"><button class="btn solid" id="signup-btn" onclick="submitSignup()">Continue</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+      <div class="row-actions"><button class="btn solid" id="signup-btn" onclick="submitSignup()">Continue</button><button class="btn ghost" onclick="${standaloneMode ? "go('home')" : 'prevStep()'}">${standaloneMode ? 'Cancel' : 'Back'}</button></div>
     </div>`;
   }
   else if(stepIndex === 3){
@@ -654,7 +732,7 @@ function renderStep(){
       <div class="check-status" id="identity-status"><span class="status-pill pending">Not started</span></div>
       <div id="identity-error" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
       <div class="row-actions"><button class="btn solid" id="identity-start-btn" onclick="startIdentityVerification()">Verify with Stripe</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
-      <div class="row-actions" style="margin-top:4px;"><button class="btn small" id="id-continue" onclick="nextStep()" disabled>Continue</button></div>
+      <div class="row-actions" style="margin-top:4px;"><button class="btn small" id="id-continue" onclick="nextStep()" disabled>Continue</button><button class="btn small ghost" onclick="skipIdentityVerification()">Skip for now — verify later</button></div>
     </div>`;
   }
   else if(stepIndex === 4){
@@ -696,8 +774,22 @@ function renderStep(){
       <div id="card-element" style="padding:12px;border:1px solid var(--line);border-radius:2px;background:var(--ink);margin-bottom:12px;font-size:13px;color:var(--paper-faint);"></div>
       <div id="card-errors" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:12px;"></div>
       <div class="row-actions"><button class="btn solid" id="pay-btn" onclick="submitPayment()">Pay & Reserve</button><button class="btn ghost" onclick="prevStep()">Back</button></div>
+      <div style="border-top:1px dashed var(--line);margin-top:22px;padding-top:18px;">
+        <p class="help" style="margin-bottom:12px;">Prefer to pay cash at pickup instead? You can request that here — an admin has to approve it before your booking is confirmed.</p>
+        <div id="cash-status"></div>
+        <div class="row-actions"><button class="btn ghost small" id="cash-btn" onclick="requestCashPayment()">Request to Pay Cash Instead</button></div>
+      </div>
     </div>`;
     mountStripeCard();
+  }
+  else if(stepIndex === 7.5){
+    panel.innerHTML = `<div class="confirm-ticket">
+      <div class="tag mono" style="color:var(--brass);">CASH REQUEST SUBMITTED</div>
+      <div class="display" style="font-size:32px;">Awaiting Admin Approval</div>
+      <p style="color:var(--paper-dim);font-size:14px;">${c.name} is held for you, but not confirmed yet — an admin needs to approve your cash payment request. You'll see it flip to "Confirmed" in My Bookings once that happens.</p>
+      <div class="confirm-code">CONFIRMATION ${resCode || makeCode()}</div>
+      <div class="row-actions" style="justify-content:center;margin-top:24px;"><button class="btn solid" onclick="go('account')">Go to My Bookings</button><button class="btn ghost" onclick="go('home')">Back to Home</button></div>
+    </div>`;
   }
   else if(stepIndex === 8){
     if(activeReservation) activeReservation.status = 'confirmed';
@@ -752,7 +844,7 @@ async function submitSignup(){
       method: 'POST',
       body: JSON.stringify({
         email: renterEmail, password, full_name: renterName, phone,
-        reservation_code: activeReservation.confirmation_code || activeReservation.code,
+        reservation_code: activeReservation ? (activeReservation.confirmation_code || activeReservation.code) : undefined,
       }),
     });
     currentRenterId = data.renter_id;
@@ -761,6 +853,22 @@ async function submitSignup(){
     console.warn('Signup API failed, continuing without a real account —', e.message);
     errEl.textContent = e.message + ' — continuing in demo mode.';
   }
+
+  if(standaloneMode){
+    // No car/reservation involved — account creation was the whole point, so
+    // land them on My Bookings (empty for now) rather than pushing them
+    // through identity/consent/payment steps meant for an active booking.
+    go('account');
+    return;
+  }
+  nextStep();
+}
+
+function skipIdentityVerification(){
+  // Lets the renter continue without finishing Stripe Identity right now.
+  // Nothing is marked "verified" — the reservation just moves forward with
+  // identity still outstanding, which shows up for admin to follow up on.
+  document.getElementById('identity-status').innerHTML = `<span class="status-pill pending">Skipped — verify before pickup</span>`;
   nextStep();
 }
 
@@ -903,7 +1011,26 @@ async function submitPayment(){
   nextStep();
 }
 
-function nextStep(){ stepIndex++; renderStep(); }
+async function requestCashPayment(){
+  const statusEl = document.getElementById('cash-status');
+  const btn = document.getElementById('cash-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  try{
+    await api('/api/payments/request-cash', {
+      method: 'POST',
+      body: JSON.stringify({ reservation_id: activeReservation?.id }),
+    });
+    if(activeReservation) activeReservation.status = 'cash_pending';
+  }catch(e){
+    console.warn('Cash payment request failed, continuing in demo mode —', e.message);
+    statusEl.innerHTML = `<div class="mono" style="color:var(--rust);font-size:12px;margin-bottom:10px;">${e.message} — continuing in demo mode.</div>`;
+  }
+  stepIndex = 7.5;
+  renderStep();
+}
+
+function nextStep(){ stepIndex = (stepIndex === 7.5) ? 8 : stepIndex + 1; renderStep(); }
 function prevStep(){ stepIndex--; renderStep(); }
 </script>
 </body>

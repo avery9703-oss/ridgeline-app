@@ -26,7 +26,7 @@ create table renters (
 
 create type reservation_status as enum (
   'pending_account','account_created','verifying','agreement_pending',
-  'payment_pending','confirmed','cancelled','expired','completed'
+  'payment_pending','cash_pending','confirmed','cancelled','expired','completed'
 );
 
 create table reservations (
