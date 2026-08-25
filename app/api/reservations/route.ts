@@ -10,7 +10,7 @@ function makeConfirmationCode() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { car_id, start_date, end_date } = body;
+  const { car_id, start_date, end_date, pickup_time } = body;
 
   if (!car_id || !start_date || !end_date) {
     return NextResponse.json({ error: 'car_id, start_date, and end_date are required' }, { status: 400 });
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       car_id,
       start_date,
       end_date,
+      pickup_time: pickup_time || null,
       status: 'pending_account',
       expires_at,
       price_total,

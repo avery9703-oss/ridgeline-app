@@ -36,6 +36,7 @@ create table reservations (
   renter_id uuid references renters(id),
   start_date date not null,
   end_date date not null,
+  pickup_time time,
   status reservation_status not null default 'pending_account',
   expires_at timestamptz,
   price_total numeric,
