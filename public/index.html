@@ -377,9 +377,9 @@
 // fetch('/api/...') hits your own backend.
 const CONFIG = {
   API_BASE: '',
-  SUPABASE_URL: 'https://cubnpxcvkdkekktcxhjk.supabase.co',
-  SUPABASE_ANON_KEY: 'sb_publishable_4oVwr0bbYSZIb8PvHWpjCQ_sOEDiHSE',
-  STRIPE_PUBLISHABLE_KEY: 'pk_live_51U7mgIDTGCMKTFNa7YmogaeKvX4f71mYQ8EadmlLHkNfRLLYMBRG2IV6thavf9tOIIKqbGsyDllb7qiKLotoH63X00JL2sC85v',
+  SUPABASE_URL: 'https://YOUR-PROJECT.supabase.co',
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+  STRIPE_PUBLISHABLE_KEY: 'pk_test_YOUR_KEY',
 };
 
 // Used only if /api/cars can't be reached, so the UI still has something to show.
@@ -557,6 +557,7 @@ function normalizeReservation(r){
     carName: (r.cars && r.cars.name) || carNameFor(r.car_id) || r.carName || 'Car',
     start: r.start_date || r.start || '',
     end: r.end_date || r.end || '',
+    pickupTime: r.pickup_time || r.pickupTime || '',
     status: r.status,
   };
 }
@@ -564,8 +565,10 @@ function normalizeReservation(r){
 async function renderAccount(){
   const wrap = document.getElementById('account-content');
   wrap.innerHTML = `<p class="help mono" style="font-size:12px;">Loading…</p>`;
-  let rows = bookingQueue;
 
+  const settingsHtml = await buildAccountSettingsHtml();
+
+  let rows = bookingQueue;
   if(currentRenterId){
     try{
       const data = await api('/api/reservations?renter_id=' + encodeURIComponent(currentRenterId));
@@ -575,30 +578,177 @@ async function renderAccount(){
     }
   }
 
-  if(rows.length === 0){
-    wrap.innerHTML = `<div class="step-panel" style="max-width:100%;">
-      <p class="help">You have no bookings yet. Once you reserve a car it will show up here — even before your account setup is finished.</p>
-      <button class="btn solid" onclick="go('fleet')">Browse the Fleet</button>
-    </div>`;
-    return;
+  const editableStatuses = ['pending_account','account_created','verifying','agreement_pending','payment_pending','cash_pending'];
+
+  const bookingsHtml = rows.length === 0
+    ? `<div class="step-panel" style="max-width:100%;">
+        <p class="help">You have no bookings yet. Once you reserve a car it will show up here — even before your account setup is finished.</p>
+        <button class="btn solid" onclick="go('fleet')">Browse the Fleet</button>
+      </div>`
+    : rows.map(raw => {
+        const r = normalizeReservation(raw);
+        const canEdit = editableStatuses.includes(r.status) && !!renterToken;
+        const canCancel = r.status !== 'cancelled' && r.status !== 'completed' && !!renterToken;
+        return `<div class="step-panel" style="max-width:100%;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+            <div>
+              <div class="tag mono" style="color:var(--brass);">${r.code}</div>
+              <h3 style="font-size:20px;margin:6px 0 4px;">${r.carName}</h3>
+              <div class="mono" style="font-size:12px;color:var(--paper-faint);">${r.start || 'dates tbd'} → ${r.end || ''}${r.pickupTime ? ' · pickup ' + r.pickupTime : ''}</div>
+            </div>
+            <div style="text-align:right;">
+              ${r.status === 'pending_account'
+                ? `<span class="status-pill pending">Pending account setup</span>
+                   <div style="margin-top:10px;"><button class="btn small solid" onclick="resumeReservation('${r.code}')">Finish Setup</button></div>`
+                : `<span class="status-pill ${r.status === 'confirmed' ? 'ok' : 'pending'}">${r.status}</span>`}
+            </div>
+          </div>
+          ${(canEdit || canCancel) ? `
+          <div class="row-actions" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:14px;">
+            ${canEdit ? `<button class="btn ghost small" onclick="toggleEditBooking('${r.code}')">Edit Dates</button>` : ''}
+            ${canCancel ? `<button class="btn rust small" onclick="cancelBooking('${r.code}')">Cancel Booking</button>` : ''}
+          </div>
+          <div id="edit-panel-${r.code}" style="display:none;margin-top:14px;border-top:1px dashed var(--line);padding-top:14px;">
+            <div class="field"><label>Pickup date</label><input type="date" id="edit-start-${r.code}" value="${r.start}"></div>
+            <div class="field"><label>Return date</label><input type="date" id="edit-end-${r.code}" value="${r.end}"></div>
+            <div class="field"><label>Preferred pickup time</label><input type="time" id="edit-time-${r.code}" value="${r.pickupTime || '10:00'}"></div>
+            <div id="edit-error-${r.code}" class="mono" style="color:var(--rust);font-size:12px;margin-bottom:8px;"></div>
+            <div class="row-actions"><button class="btn solid small" onclick="saveBookingDates('${r.code}')">Save Changes</button><button class="btn ghost small" onclick="toggleEditBooking('${r.code}')">Cancel</button></div>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+
+  wrap.innerHTML = settingsHtml + bookingsHtml;
+}
+
+async function buildAccountSettingsHtml(){
+  if(!renterToken){
+    return ''; // no session (e.g. demo-mode signup failed) — just show bookings
   }
 
-  wrap.innerHTML = rows.map(raw => {
-    const r = normalizeReservation(raw);
-    return `<div class="step-panel" style="max-width:100%;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
-      <div>
-        <div class="tag mono" style="color:var(--brass);">${r.code}</div>
-        <h3 style="font-size:20px;margin:6px 0 4px;">${r.carName}</h3>
-        <div class="mono" style="font-size:12px;color:var(--paper-faint);">${r.start || 'dates tbd'} → ${r.end || ''}</div>
-      </div>
-      <div style="text-align:right;">
-        ${r.status === 'pending_account'
-          ? `<span class="status-pill pending">Pending account setup</span>
-             <div style="margin-top:10px;"><button class="btn small solid" onclick="resumeReservation('${r.code}')">Finish Setup</button></div>`
-          : `<span class="status-pill ok">${r.status === 'confirmed' ? 'Confirmed' : r.status}</span>`}
-      </div>
-    </div>`;
-  }).join('');
+  let profile = { full_name: renterName || '', phone: '', email: renterEmail || '' };
+  try{
+    const res = await fetch(CONFIG.API_BASE + '/api/account/me', {
+      headers: { Authorization: `Bearer ${renterToken}` },
+    });
+    const data = await res.json();
+    if(res.ok) profile = data.profile;
+  }catch(e){
+    console.warn('Could not load account profile —', e.message);
+  }
+
+  return `<div class="step-panel" style="max-width:100%;margin-bottom:24px;">
+    <h3 style="font-size:18px;margin-bottom:14px;">Account Settings</h3>
+    <div class="field"><label>Full name</label><input type="text" id="settings-name" value="${profile.full_name || ''}"></div>
+    <div class="field"><label>Phone</label><input type="tel" id="settings-phone" value="${profile.phone || ''}"></div>
+    <div class="field"><label>Email</label><input type="email" value="${profile.email || ''}" disabled style="opacity:0.5;"></div>
+    <div id="settings-profile-status" class="mono" style="font-size:12px;margin-bottom:8px;"></div>
+    <div class="row-actions"><button class="btn solid small" onclick="saveProfile()">Save Profile</button></div>
+
+    <div style="border-top:1px dashed var(--line);margin-top:20px;padding-top:16px;">
+      <p class="help" style="margin-bottom:12px;">Change password</p>
+      <div class="field"><label>New password</label><input type="password" id="settings-new-password" placeholder="At least 8 characters"></div>
+      <div id="settings-password-status" class="mono" style="font-size:12px;margin-bottom:8px;"></div>
+      <div class="row-actions"><button class="btn solid small" onclick="savePassword()">Update Password</button></div>
+    </div>
+  </div>`;
+}
+
+async function saveProfile(){
+  const statusEl = document.getElementById('settings-profile-status');
+  const full_name = document.getElementById('settings-name').value;
+  const phone = document.getElementById('settings-phone').value;
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--paper-faint)';
+  try{
+    const res = await fetch(CONFIG.API_BASE + '/api/account/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${renterToken}` },
+      body: JSON.stringify({ full_name, phone }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Save failed');
+    renterName = full_name;
+    statusEl.textContent = 'Saved.';
+    statusEl.style.color = 'var(--sage)';
+  }catch(e){
+    statusEl.textContent = e.message;
+    statusEl.style.color = 'var(--rust)';
+  }
+}
+
+async function savePassword(){
+  const statusEl = document.getElementById('settings-password-status');
+  const newPassword = document.getElementById('settings-new-password').value;
+  if(newPassword.length < 8){
+    statusEl.textContent = 'Password must be at least 8 characters.';
+    statusEl.style.color = 'var(--rust)';
+    return;
+  }
+  statusEl.textContent = 'Updating…';
+  statusEl.style.color = 'var(--paper-faint)';
+  try{
+    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${renterToken}`,
+      },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.msg || data.error_description || 'Password update failed');
+    statusEl.textContent = 'Password updated.';
+    statusEl.style.color = 'var(--sage)';
+    document.getElementById('settings-new-password').value = '';
+  }catch(e){
+    statusEl.textContent = e.message;
+    statusEl.style.color = 'var(--rust)';
+  }
+}
+
+function toggleEditBooking(code){
+  const panel = document.getElementById('edit-panel-' + code);
+  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+async function saveBookingDates(code){
+  const errEl = document.getElementById('edit-error-' + code);
+  const start = document.getElementById('edit-start-' + code).value;
+  const end = document.getElementById('edit-end-' + code).value;
+  const time = document.getElementById('edit-time-' + code).value;
+
+  try{
+    const res = await fetch(CONFIG.API_BASE + '/api/reservations/' + encodeURIComponent(code), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${renterToken}` },
+      body: JSON.stringify({ start_date: start, end_date: end, pickup_time: time }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Update failed');
+  }catch(e){
+    errEl.textContent = e.message;
+    return;
+  }
+  renderAccount();
+}
+
+async function cancelBooking(code){
+  if(!confirm('Cancel this booking? This cannot be undone.')) return;
+  try{
+    const res = await fetch(CONFIG.API_BASE + '/api/reservations/' + encodeURIComponent(code), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${renterToken}` },
+      body: JSON.stringify({ status: 'cancelled' }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Cancel failed');
+  }catch(e){
+    alert(e.message);
+    return;
+  }
+  renderAccount();
 }
 
 function updateAuthNav(){
